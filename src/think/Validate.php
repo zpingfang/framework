@@ -550,7 +550,7 @@ class Validate
             // 字段数据因子验证
             if ($rule instanceof ValidateRuleSet) {
                 $values = $this->getDataSet($data, $key);
-                if (empty($values) || empty($values[0])) {
+                if (empty($values)) {
                     continue;
                 }
                 $items = $rule->getRules();
@@ -573,7 +573,7 @@ class Validate
                         $message = $this->getRuleMsg($name, $name, 'require', $item);
                         throw new ValidateException($message, $name);
                     }
-                } else {
+                } elseif (is_array($values)) {
                     $result = $this->checkItems($name, $values, $item, $data, $title);
                     if (false === $result) {
                         return false;
@@ -1777,17 +1777,18 @@ class Validate
             if (str_ends_with($key, '*')) {
                 // user.id.*
                 [$key] = explode('.*', $key);
-                $value = $this->getRecursiveData($data, $key);
+                $value = $this->getRecursiveData($data, $key) ?: [];
                 return is_array($value) ? $value : [$value];
             }
             // user.*.id
-            [$key, $column] = explode('.*.', $key);
+            [$key] = explode('.*.', $key);
 
-            $value = $this->getRecursiveData($data, $key);
-            return array_column(is_array($value) ? $value : [], $column);
+            $value = $this->getRecursiveData($data, $key) ?: [];
+            return is_array($value) ? $value : [];
         }
 
-        return [$this->getDataValue($data, $key)];
+        $value = $this->getDataValue($data, $key);
+        return is_null($value) ? [] : [$value];
     }
 
     /**
