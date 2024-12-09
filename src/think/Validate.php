@@ -19,6 +19,7 @@ use think\contract\Enumable;
 use think\exception\ValidateException;
 use think\helper\Str;
 use think\validate\ValidateRule;
+use think\validate\ValidateRuleSet;
 use UnitEnum;
 
 /**
@@ -546,41 +547,38 @@ class Validate
                 continue;
             }
 
-            // 获取数据 支持二维数组
-            $values = $this->getDataSet($data, $key);
-
-            if (empty($values)) {
-                if (is_string($rule)) {
-                    $items = explode('|', $rule);
-                } elseif (is_array($rule)) {
-                    $items = $rule;
+            // 字段数据因子验证
+            if ($rule instanceof ValidateRuleSet) {
+                $values = $this->getDataSet($data, $key);
+                if (empty($values) || empty($value[0])) {
+                    continue;
                 }
-
-                if (isset($items) && false !== array_search('require', $items)) {
-                    $message = $this->getRuleMsg($key, $title, 'require', $rule);
-                    throw new ValidateException($message, $key);
-                }
+                $items = $rule->getRules();
+            } else {
+                $items = [$rule];
             }
 
-            // 字段数据因子验证
-            foreach ($values as $value) {
-                $result = $this->checkItem($key, $value, $rule, $data, $title);
+            foreach ($items as $k => $item) {
+                $name   = is_string($k) ? $key . '.' . $k : $key;
+                $values = $this->getDataSet($data, $name);
 
-                if (true !== $result) {
-                    // 验证失败 记录错误信息
-                    if (false === $result) {
-                        $result = $this->getRuleMsg($key, $title, '', $rule);
+                if (empty($values)) {
+                    if (is_string($item)) {
+                        $array = explode('|', $item);
+                    } elseif (is_array($item)) {
+                        $array = $item;
                     }
 
-                    $this->error[$key] = $result;
-
-                    if (!empty($this->batch)) {
-                        // 批量验证
-                    } elseif ($this->failException) {
-                        throw new ValidateException($result, $key);
-                    } else {
-                        return false;
+                    if (isset($array) && false !== array_search('require', $array)) {
+                        $message = $this->getRuleMsg($name, $name, 'require', $item);
+                        throw new ValidateException($message, $name);
                     }
+                } elseif (!is_array($item)) {
+                    $result = $this->checkItems($name, $values, $item, $data, $title);
+                }
+
+                if (false === $result) {
+                    return false;
                 }
             }
         }
@@ -592,6 +590,41 @@ class Validate
             return false;
         }
 
+        return true;
+    }
+
+    /**
+     * 验证字段规则
+     * @access protected
+     * @param string $field 字段名
+     * @param array  $values 字段值集合
+     * @param mixed  $rule 验证规则
+     * @param array  $data  数据
+     * @param string $title 字段描述
+     * @return bool
+     */
+    protected function checkItems($key, $values, $rule, $data, $title)
+    {
+        foreach ($values as $value) {
+            $result = $this->checkItem($key, $value, $rule, $data, $title);
+
+            if (true !== $result) {
+                // 验证失败 记录错误信息
+                if (false === $result) {
+                    $result = $this->getRuleMsg($key, $title, '', $rule);
+                }
+
+                $this->error[$key] = $result;
+
+                if (!empty($this->batch)) {
+                    // 批量验证
+                } elseif ($this->failException) {
+                    throw new ValidateException($result, $key);
+                } else {
+                    return false;
+                }
+            }
+        }
         return true;
     }
 
@@ -1725,10 +1758,10 @@ class Validate
      */
     public function getError(bool $withKey = false)
     {
-        if ($withKey || count($this->error) > 1 ) {
+        if ($withKey || count($this->error) > 1) {
             // 批量验证
             return $this->error;
-        } 
+        }
         return empty($this->error) ? '' : array_values($this->error)[0];
     }
 
@@ -1750,7 +1783,9 @@ class Validate
             }
             // user.*.id
             [$key, $column] = explode('.*.', $key);
-            return array_column($this->getRecursiveData($data, $key) ?: [], $column);
+
+            $value = $this->getRecursiveData($data, $key);
+            return array_column(is_array($value) ? $value : [], $column);
         }
 
         return [$this->getDataValue($data, $key)];
