@@ -36,9 +36,7 @@ class ValidateRuleSet
      */
     public static function rules(array $rules)
     {
-        $ruleSet = new static($rules);
-
-        return $ruleSet;
+        return new static($rules);
     }
 
     /**

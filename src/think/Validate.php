@@ -573,12 +573,11 @@ class Validate
                         $message = $this->getRuleMsg($name, $name, 'require', $item);
                         throw new ValidateException($message, $name);
                     }
-                } elseif (!is_array($item)) {
+                } else {
                     $result = $this->checkItems($name, $values, $item, $data, $title);
-                }
-
-                if (false === $result) {
-                    return false;
+                    if (false === $result) {
+                        return false;
+                    }
                 }
             }
         }
