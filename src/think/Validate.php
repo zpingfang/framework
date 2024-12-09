@@ -550,7 +550,7 @@ class Validate
             // 字段数据因子验证
             if ($rule instanceof ValidateRuleSet) {
                 $values = $this->getDataSet($data, $key);
-                if (empty($values) || empty($value[0])) {
+                if (empty($values) || empty($values[0])) {
                     continue;
                 }
                 $items = $rule->getRules();
