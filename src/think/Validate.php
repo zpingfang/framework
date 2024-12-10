@@ -534,7 +534,6 @@ class Validate
         }
 
         foreach ($rules as $key => $rule) {
-            // field => 'rule1|rule2...' field => ['rule1','rule2',...]
             if (str_contains($key, '|')) {
                 // 字段|描述 用于指定属性名称
                 [$key, $title] = explode('|', $key);
@@ -559,9 +558,15 @@ class Validate
             }
 
             foreach ($items as $k => $item) {
-                $name   = is_string($k) ? $key . '.' . $k : $key;
-                $values = $this->getDataSet($data, $name);
+                $name = is_string($k) ? $key . '.' . $k : $key;
+                if (str_contains($name, '|')) {
+                    // 字段|描述 用于指定属性名称
+                    [$name, $title] = explode('|', $name);
+                } else {
+                    $title = $this->field[$name] ?? $name;
+                }
 
+                $values = $this->getDataSet($data, $name);
                 if (empty($values)) {
                     if (is_string($item)) {
                         $array = explode('|', $item);
@@ -570,7 +575,7 @@ class Validate
                     }
 
                     if (isset($array) && false !== array_search('require', $array)) {
-                        $message = $this->getRuleMsg($name, $name, 'require', $item);
+                        $message = $this->getRuleMsg($name, $title, 'require', $item);
                         throw new ValidateException($message, $name);
                     }
                 } elseif (is_array($values)) {
