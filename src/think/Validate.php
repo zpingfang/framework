@@ -547,43 +547,9 @@ class Validate
             }
 
             // 字段数据因子验证
-            if ($rule instanceof ValidateRuleSet) {
-                $values = $this->getDataSet($data, $key);
-                if (empty($values)) {
-                    continue;
-                }
-                $items = $rule->getRules();
-            } else {
-                $items = [$rule];
-            }
-
-            foreach ($items as $k => $item) {
-                $name = is_string($k) ? $key . '.' . $k : $key;
-                if (str_contains($name, '|')) {
-                    // 字段|描述 用于指定属性名称
-                    [$name, $title] = explode('|', $name);
-                } else {
-                    $title = $this->field[$name] ?? $name;
-                }
-
-                $values = $this->getDataSet($data, $name);
-                if (empty($values)) {
-                    if (is_string($item)) {
-                        $array = explode('|', $item);
-                    } elseif (is_array($item)) {
-                        $array = $item;
-                    }
-
-                    if (isset($array) && false !== array_search('require', $array)) {
-                        $message = $this->getRuleMsg($name, $title, 'require', $item);
-                        throw new ValidateException($message, $name);
-                    }
-                } elseif (is_array($values)) {
-                    $result = $this->checkItems($name, $values, $item, $data, $title);
-                    if (false === $result) {
-                        return false;
-                    }
-                }
+            $result = $this->checkItems($key, $rule, $data, $title);
+            if (false === $result) {
+                return false;
             }
         }
 
@@ -601,31 +567,66 @@ class Validate
      * 验证字段规则
      * @access protected
      * @param string $field 字段名
-     * @param array  $values 字段值集合
      * @param mixed  $rule 验证规则
      * @param array  $data  数据
      * @param string $title 字段描述
      * @return bool
      */
-    protected function checkItems($key, $values, $rule, $data, $title)
+    protected function checkItems($key, $rule, $data, $title): bool
     {
-        foreach ($values as $value) {
-            $result = $this->checkItem($key, $value, $rule, $data, $title);
+        // 字段数据因子验证
+        if ($rule instanceof ValidateRuleSet) {
+            $values = $this->getDataSet($data, $key);
+            if (empty($values)) {
+                return true;
+            }
+            $items = $rule->getRules();
+        } else {
+            $items = [$rule];
+        }
 
-            if (true !== $result) {
-                // 验证失败 记录错误信息
-                if (false === $result) {
-                    $result = $this->getRuleMsg($key, $title, '', $rule);
+        foreach ($items as $k => $item) {
+            $name = is_string($k) ? $key . '.' . $k : $key;
+            if (str_contains($name, '|')) {
+                // 字段|描述 用于指定属性名称
+                [$name, $title] = explode('|', $name);
+            } else {
+                $title = $this->field[$name] ?? $name;
+            }
+
+            $values = $this->getDataSet($data, $name);
+            if (empty($values)) {
+                if (is_string($item)) {
+                    $array = explode('|', $item);
+                } elseif (is_array($item)) {
+                    $array = $item;
                 }
 
-                $this->error[$key] = $result;
+                if (isset($array) && false !== array_search('require', $array)) {
+                    $message = $this->getRuleMsg($name, $title, 'require', $item);
+                    throw new ValidateException($message, $name);
+                }
+                continue;
+            }
 
-                if (!empty($this->batch)) {
-                    // 批量验证
-                } elseif ($this->failException) {
-                    throw new ValidateException($result, $key);
-                } else {
-                    return false;
+            foreach ($values as $value) {
+                $result = $this->checkItem($name, $value, $item, $data, $title);
+
+                if (true !== $result) {
+                    // 验证失败 记录错误信息
+                    if (false === $result) {
+                        $result = $this->getRuleMsg($name, $title, '', $item);
+                    }
+
+                    $this->error[$name] = $result;
+
+                    if (!empty($this->batch)) {
+                        // 批量验证
+                    } elseif ($this->failException) {
+                        throw new ValidateException($result, $name);
+                    } else {
+                        return false;
+                    }
                 }
             }
         }
@@ -685,6 +686,10 @@ class Validate
      */
     protected function checkItem(string $field, $value, $rules, $data, string $title = '', array $msg = []): mixed
     {
+        if ($rules instanceof ValidateRuleSet) {
+            return $this->checkItems($field, $rules, $data, $title);
+        }
+
         if ($rules instanceof Closure) {
             return call_user_func_array($rules, [$value, $data]);
         }
