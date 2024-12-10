@@ -610,7 +610,13 @@ class Validate
             }
 
             foreach ($values as $value) {
-                $result = $this->checkItem($name, $value, $item, $data, $title);
+                if (substr_count($name, '*') > 1) {
+                    $array  = explode('.*.', $name);
+                    $field  = array_pop($array);
+                    $result = $this->checkItem($field, $value, $item, $value, $title);
+                } else {
+                    $result = $this->checkItem($name, $value, $item, $data, $title);
+                }
 
                 if (true !== $result) {
                     // 验证失败 记录错误信息
