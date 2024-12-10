@@ -29,10 +29,8 @@ class ValidateRuleSet
     /**
      * 添加验证因子
      * @access public
-     * @param  string    $name  验证名称
-     * @param  mixed     $rule  验证规则
-     * @param  string    $msg   提示信息
-     * @return $this
+     * @param  array    $rules  验证因子
+     * @return static
      */
     public static function rules(array $rules)
     {
