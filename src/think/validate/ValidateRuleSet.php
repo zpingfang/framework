@@ -22,7 +22,7 @@ class ValidateRuleSet
      * 构造方法
      * @access public
      */
-    public function __construct(protected array $rules = [])
+    public function __construct(protected array $rules = [], protected array $message = [])
     {
     }
 
@@ -30,11 +30,24 @@ class ValidateRuleSet
      * 添加验证因子
      * @access public
      * @param  array    $rules  验证因子
+     * @param  array    $message  错误信息
      * @return static
      */
-    public static function rules(array $rules)
+    public static function rules(array $rules, array $message = [])
     {
-        return new static($rules);
+        return new static($rules, $message);
+    }
+
+    /**
+     * 设置错误信息
+     * @access public
+     * @param  array    $message  错误信息
+     * @return $this
+     */
+    public function message(array $message)
+    {
+        $this->message = $message;
+        return $this;
     }
 
     /**
@@ -47,4 +60,13 @@ class ValidateRuleSet
         return $this->rules;
     }
 
+    /**
+     * 获取错误信息
+     * @access public
+     * @return array
+     */
+    public function getMessage(): array
+    {
+        return $this->message;
+    }
 }

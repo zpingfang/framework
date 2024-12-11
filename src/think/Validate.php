@@ -581,6 +581,9 @@ class Validate
                 return true;
             }
             $items = $rule->getRules();
+            foreach ($rule->getMessage() as $name => $message) {
+                $this->message[$key . '.' . $name] = $message;
+            }
         } else {
             $items = [$rule];
         }
