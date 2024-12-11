@@ -38,7 +38,7 @@ class Validate
      * 验证类型别名
      * @var array
      */
-    protected $alias = [
+    protected $map = [
         '>' => 'gt', '>=' => 'egt', '<' => 'lt', '<=' => 'elt', '=' => 'eq', 'same' => 'eq', '<>' => 'neq',
     ];
 
@@ -47,6 +47,24 @@ class Validate
      * @var array
      */
     protected $rule = [];
+
+    /**
+     * 当前验证规则集
+     * @var array
+     */
+    protected $ruleSet = [];
+
+    /**
+     * 当前验证规则组
+     * @var array
+     */
+    protected $group = [];
+
+    /**
+     * 验证规则别名
+     * @var array
+     */
+    protected $alias = [];
 
     /**
      * 验证提示信息
@@ -308,18 +326,88 @@ class Validate
      * @access protected
      * @param string|array $name 字段名称或者规则数组
      * @param mixed        $rule 验证规则或者字段描述信息
+     * @param string|array $msg  错误信息
      * @return $this
      */
-    public function rule(string | array $name, $rule = '')
+    public function rule(string | array $name, $rule = '', string | array $msg = [])
     {
         if (is_array($name)) {
             $this->rule = $name + $this->rule;
             if (is_array($rule)) {
                 $this->field = array_merge($this->field, $rule);
             }
+            if (!empty($msg) && is_array($msg)) {
+                $this->message($msg);
+            }
         } else {
             $this->rule[$name] = $rule;
+            if (!empty($msg)) {
+                $this->message[$name] = $msg;
+            }
         }
+
+        return $this;
+    }
+
+    /**
+     * 获取所有验证规则
+     * @access public
+     * @return array
+     */
+    public function getRule(): array
+    {
+        return $this->rule;
+    }
+
+    /**
+     * 添加验证规则别名
+     * @access public
+     * @param string|array $name 验证规则别名或者别名数组
+     * @param mixed        $rule 验证规则
+     * @return $this
+     */
+    public function alias(string | array $name, $rule = '')
+    {
+        if (is_array($name)) {
+            $this->alias = $name + $this->alias;
+            if (is_array($rule)) {
+                $this->field = array_merge($this->field, $rule);
+            }
+        } else {
+            $this->alias[$name] = $rule;
+        }
+
+        return $this;
+    }
+
+    /**
+     * 添加验证规则组 支持闭包或数组 每个分组的验证彼此独立
+     * group('group',function($validate) {
+     *      return $validate->rule('name','rule...');
+     * })
+     * @access public
+     * @param string        $name  分组名
+     * @param array|Closure $rules 验证规则
+     * @return $this
+     */
+    public function group(string $name, array | Closure $rules)
+    {
+        $this->group[$name] = $rules;
+
+        return $this;
+    }
+
+    /**
+     * 添加验证规则集 支持闭包或数组
+     * @access public
+     * @param string        $name  分组名
+     * @param array|Closure $rules 验证规则
+     * @param array         $msg   错误信息
+     * @return ValidateRuleSet
+     */
+    public function ruleSet(string $name, array | Closure $rules, array $msg = [])
+    {
+        $this->rule[$name . '.*'] = ValidateRuleSet::rules($rules, $msg);
 
         return $this;
     }
@@ -373,6 +461,16 @@ class Validate
     }
 
     /**
+     * 获取提示信息
+     * @access public
+     * @return array
+     */
+    public function getMessage(): array
+    {
+        return $this->message;
+    }
+
+    /**
      * 设置验证场景或直接指定需要验证的字段
      * @access public
      * @param string|array $name 场景名
@@ -398,7 +496,7 @@ class Validate
      */
     public function hasScene(string $name): bool
     {
-        return isset($this->scene[$name]) || method_exists($this, 'scene' . $name);
+        return isset($this->scene[$name]) || method_exists($this, 'scene' . Str::studly($name));
     }
 
     /**
@@ -510,10 +608,10 @@ class Validate
      * 数据自动验证
      * @access public
      * @param array $data  数据
-     * @param array $rules 验证规则
+     * @param array|string $rules 验证规则
      * @return bool
      */
-    public function check(array $data, array $rules = []): bool
+    public function check(array $data, array | string $rules = []): bool
     {
         $this->error = [];
 
@@ -524,6 +622,18 @@ class Validate
         if (empty($rules)) {
             // 读取验证规则
             $rules = $this->rule;
+        } elseif (is_string($rules)) {
+            $rules = $this->getGroupRules($rules);
+            // 分组独立检测
+            if ($rules instanceof Closure) {
+                return $rules(new self)
+                    ->alias($this->alias)
+                    ->batch($this->batch)
+                    ->failException($this->failException)
+                    ->check($data);
+            } elseif ($rules instanceof Validate) {
+                return $rules->check($data);
+            }
         }
 
         foreach ($this->append as $key => $rule) {
@@ -546,7 +656,7 @@ class Validate
                 continue;
             }
 
-            // 字段数据因子验证
+            // 数据验证
             $result = $this->checkItems($key, $rule, $data, $title);
             if (false === $result) {
                 return false;
@@ -574,13 +684,18 @@ class Validate
      */
     protected function checkItems($key, $rule, $data, $title): bool
     {
-        // 字段数据因子验证
         if ($rule instanceof ValidateRuleSet) {
+            // 验证集
             $values = $this->getDataSet($data, $key);
             if (empty($values)) {
                 return true;
             }
             $items = $rule->getRules();
+            if ($items instanceof Closure) {
+                // 获取验证集的规则
+                $items = $items(new self)->getRule();
+            }
+            // 验证集的错误信息
             foreach ($rule->getMessage() as $name => $message) {
                 $this->message[$key . '.' . $name] = $message;
             }
@@ -707,6 +822,10 @@ class Validate
             $title = $rules->getTitle() ?: $title;
             $msg   = $rules->getMsg();
             $rules = $rules->getRule();
+        } elseif (is_string($rules)) {
+            // 检查验证规则别名
+            // 'alias' => require|in:a,b,c|... 或者 ['require','in'=>'a,b,c',...]
+            $rules = $this->alias[$rules] ?? $rules;
         }
 
         if (isset($this->remove[$field]) && true === $this->remove[$field] && empty($this->append[$field])) {
@@ -720,7 +839,7 @@ class Validate
             $rules = $this->only[$field];
         }
 
-        // 支持多规则验证 require|in:a,b,c|... 或者 ['require','in'=>'a,b,c',...]
+        // 统一解析为数组规则验证 require|in:a,b,c|... 或者 ['require','in'=>'a,b,c',...]
         if (is_string($rules)) {
             $rules = explode('|', $rules);
         }
@@ -817,7 +936,7 @@ class Validate
         }
 
         // 验证类型别名
-        $type = $this->alias[$type] ?? $type;
+        $type = $this->map[$type] ?? $type;
 
         if (isset($this->type[$type])) {
             // 自定义验证
@@ -1959,12 +2078,31 @@ class Validate
      */
     protected function getScene(string $scene): void
     {
-        if (method_exists($this, 'scene' . $scene)) {
-            call_user_func([$this, 'scene' . $scene]);
+        $method = 'scene' . Str::studly($scene);
+        if (method_exists($this, $method)) {
+            call_user_func([$this, $method]);
         } elseif (isset($this->scene[$scene])) {
             // 如果设置了验证适用场景
             $this->only = $this->scene[$scene];
         }
+    }
+
+    /**
+     * 获取验证分组
+     * @access protected
+     * @param string $group 分组名
+     * @return mixed
+     */
+    protected function getGroupRules(string $group)
+    {
+        $method = 'group' . Str::studly($group);
+        if (method_exists($this, $method)) {
+            $validate =  call_user_func_array([$this, $method], [new self]);
+            return $validate->alias($this->alias)
+                    ->batch($this->batch)
+                    ->failException($this->failException);
+        }
+        return $this->group[$group] ?? [];
     }
 
     /**

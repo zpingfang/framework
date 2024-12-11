@@ -12,6 +12,8 @@ declare (strict_types = 1);
 
 namespace think\validate;
 
+use Closure;
+
 /**
  * Class ValidateRuleSet
  * @package think\validate
@@ -22,7 +24,7 @@ class ValidateRuleSet
      * 构造方法
      * @access public
      */
-    public function __construct(protected array $rules = [], protected array $message = [])
+    public function __construct(protected array|Closure $rules = [], protected array $message = [])
     {
     }
 
@@ -33,7 +35,7 @@ class ValidateRuleSet
      * @param  array    $message  错误信息
      * @return static
      */
-    public static function rules(array $rules, array $message = [])
+    public static function rules(array|Closure $rules, array $message = [])
     {
         return new static($rules, $message);
     }
@@ -55,7 +57,7 @@ class ValidateRuleSet
      * @access public
      * @return array
      */
-    public function getRules(): array
+    public function getRules()
     {
         return $this->rules;
     }

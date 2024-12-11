@@ -8,7 +8,7 @@
 // +----------------------------------------------------------------------
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
-declare(strict_types=1);
+declare (strict_types = 1);
 
 //------------------------
 // ThinkPHP 助手函数
@@ -545,9 +545,9 @@ if (!function_exists('rules')) {
     /**
      * 定义ValidateRuleSet规则集合
      * @param array    $rules     验证因子集
-     * @return \think\ValidateRuleSet
-     */    
-    function rules(array $rules): ValidateRuleSet 
+     * @return ValidateRuleSet
+     */
+    function rules(array $rules): ValidateRuleSet
     {
         return ValidateRuleSet::rules($rules);
     }
