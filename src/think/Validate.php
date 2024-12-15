@@ -708,8 +708,8 @@ class Validate
             if (str_contains($name, '|')) {
                 // 字段|描述 用于指定属性名称
                 [$name, $title] = explode('|', $name);
-            } else {
-                $title = $this->field[$name] ?? $name;
+            } elseif (isset($this->field[$name])) {
+                $title = $this->field[$name];
             }
 
             $values = $this->getDataSet($data, $name);
