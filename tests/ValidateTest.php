@@ -121,6 +121,7 @@ class ValidateTest extends TestCase
         $this->assertFalse($validate->multipleOf('4', '3'));
         $this->assertFalse($validate->multipleOf(4, '3'));
         $this->assertFalse($validate->multipleOf('4', 3));
+
     }
 
     /**
@@ -168,4 +169,27 @@ class ValidateTest extends TestCase
 
         $validate->batch(true)->check([]);
     }
+
+    public function testErrorMessage()
+    {
+        $validate = new Validate();
+        $validate->setLang($this->lang);
+
+        $validate->rule([
+            'name|Name'   => 'require',
+            'phone|Phone' => 'require|mobile',
+        ]);
+
+        $validate->failException(false);
+
+        $validate->batch(true)->check(['phone' => 'foo']);
+
+        $errors = $validate->getError(true);
+
+        $this->assertEquals($errors, [
+            'name'  => 'Name require',
+            'phone' => 'Phone not a valid mobile',
+        ]);
+    }
+
 }
