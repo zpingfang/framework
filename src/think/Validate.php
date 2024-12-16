@@ -715,25 +715,7 @@ class Validate
 
             $values = $this->getDataSet($data, $name);
             if (empty($values)) {
-                if (is_string($item)) {
-                    $array = explode('|', $item);
-                } elseif (is_array($item)) {
-                    $array = $item;
-                }
-
-                if (isset($array) && false !== array_search('require', $array)) {
-                    $message = $this->getRuleMsg($name, $title, 'require', $item);
-
-                    $this->error[$name] = $message;
-                    if (!empty($this->batch)) {
-                        // 批量验证
-                    } elseif ($this->failException) {
-                        throw new ValidateException($message, $name);
-                    } else {
-                        return false;
-                    }
-                }
-                continue;
+                $values[$name] = null;
             }
 
             foreach ($values as $value) {
@@ -752,8 +734,7 @@ class Validate
                     }
 
                     $this->error[$name] = $result;
-
-                    if (!empty($this->batch)) {
+                    if ($this->batch) {
                         // 批量验证
                     } elseif ($this->failException) {
                         throw new ValidateException($result, $name);
