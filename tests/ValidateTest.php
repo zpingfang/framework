@@ -152,6 +152,7 @@ class ValidateTest extends TestCase
 
         $this->expectExceptionMessage('Name require');
 
+        $validate->failException(true);
         $validate->check([]);
     }
 
@@ -167,6 +168,7 @@ class ValidateTest extends TestCase
 
         $this->expectExceptionMessage(json_encode(['name' => 'Name require', 'tag' => 'Tag require']));
 
+        $validate->failException(true);
         $validate->batch(true)->check([]);
     }
 
