@@ -723,7 +723,15 @@ class Validate
 
                 if (isset($array) && false !== array_search('require', $array)) {
                     $message = $this->getRuleMsg($name, $title, 'require', $item);
-                    throw new ValidateException($message, $name);
+
+                    $this->error[$name] = $message;
+                    if (!empty($this->batch)) {
+                        // 批量验证
+                    } elseif ($this->failException) {
+                        throw new ValidateException($message, $name);
+                    } else {
+                        return false;
+                    }
                 }
                 continue;
             }
@@ -2098,10 +2106,10 @@ class Validate
     {
         $method = 'group' . Str::studly($group);
         if (method_exists($this, $method)) {
-            $validate =  call_user_func_array([$this, $method], [new self]);
+            $validate = call_user_func_array([$this, $method], [new self]);
             return $validate->alias($this->alias)
-                    ->batch($this->batch)
-                    ->failException($this->failException);
+                ->batch($this->batch)
+                ->failException($this->failException);
         }
         return $this->group[$group] ?? [];
     }
