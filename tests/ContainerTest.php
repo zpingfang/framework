@@ -32,6 +32,11 @@ class Taylor
         return $container;
     }
 
+    public static function make(self $taylor)
+    {
+        return $taylor;
+    }
+
     public static function __make()
     {
         return new self('Taylor');
@@ -137,6 +142,15 @@ class ContainerTest extends TestCase
         foreach ($container as $class => $instance) {
 
         }
+    }
+
+    public function testSelf()
+    {
+        $container = new Container;
+
+        $taylor = new Taylor('test');
+
+        $container->invoke([Taylor::class, 'make'], [$taylor]);
     }
 
     public function testBind()
