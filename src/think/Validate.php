@@ -636,10 +636,6 @@ class Validate
     {
         $this->error = [];
 
-        if ($this->currentScene) {
-            $this->getScene($this->currentScene);
-        }
-
         if (empty($rules)) {
             // 读取验证规则
             $rules = $this->rules();
@@ -659,6 +655,10 @@ class Validate
             $rules =  $rules->getRules();
         }
 
+        if ($this->currentScene) {
+            $this->getScene($this->currentScene);
+        }
+        
         foreach ($this->append as $key => $rule) {
             if (!isset($rules[$key])) {
                 $rules[$key] = $rule;
@@ -2107,7 +2107,7 @@ class Validate
      */
     protected function getGroupRules(string $group)
     {
-        $method = 'group' . Str::studly($group);
+        $method = 'rules' . Str::studly($group);
         if (method_exists($this, $method)) {
             $validate = call_user_func_array([$this, $method], [new self]);
             return $validate->alias($this->alias)
