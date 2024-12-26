@@ -309,6 +309,9 @@ class RuleGroup extends Rule
                     $regex[$key] = $this->buildRuleRegex($rule, $matches[0], $pattern, $option, $complete, '_THINK_' . $key);
                     $items[$key] = $item;
                 }
+            } elseif ($item instanceof RuleGroup) {
+                $array = $item->getrules();
+                return $this->checkMergeRuleRegex($request, $array, ltrim($url, $depr), $completeMatch);
             }
         }
 
@@ -420,7 +423,7 @@ class RuleGroup extends Rule
     {
         $this->bind = '\\' . $class;
         if ($prefix) {
-            $this->prefix('\\' . $class . '@');            
+            $this->prefix('\\' . $class . '@');
         }
         return $this;
     }
@@ -436,7 +439,7 @@ class RuleGroup extends Rule
     {
         $this->bind = '@' . $controller;
         if ($prefix) {
-            $this->prefix($controller . '/');            
+            $this->prefix($controller . '/');
         }
         return $this;
     }
@@ -452,7 +455,7 @@ class RuleGroup extends Rule
     {
         $this->bind = ':' . $namespace;
         if ($prefix) {
-            $this->prefix($namespace . '\\');            
+            $this->prefix($namespace . '\\');
         }
         return $this;
     }
@@ -468,7 +471,7 @@ class RuleGroup extends Rule
     {
         $this->bind = '/' . $layer;
         if ($prefix) {
-            $this->prefix($layer . '/');            
+            $this->prefix($layer . '/');
         }
         return $this;
     }
