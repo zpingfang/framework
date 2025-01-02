@@ -8,7 +8,7 @@
 // +----------------------------------------------------------------------
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
-declare(strict_types=1);
+declare (strict_types = 1);
 
 namespace think\middleware;
 
@@ -73,7 +73,7 @@ class LoadLangPack
         } elseif ($request->cookie($this->config['cookie_var'])) {
             // Cookie中设置了语言变量
             $langSet = $request->cookie($this->config['cookie_var']);
-        } elseif ($request->server('HTTP_ACCEPT_LANGUAGE')) {
+        } elseif ($this->config['auto_detect_browser'] && $request->server('HTTP_ACCEPT_LANGUAGE')) {
             // 自动侦测浏览器语言
             $langSet = $request->server('HTTP_ACCEPT_LANGUAGE');
         }
