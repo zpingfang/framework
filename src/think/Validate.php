@@ -9,7 +9,7 @@
 // +----------------------------------------------------------------------
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
-declare (strict_types=1);
+declare (strict_types = 1);
 
 namespace think;
 
@@ -652,7 +652,7 @@ class Validate
         }
 
         if ($rules instanceof Validate) {
-            $rules =  $rules->getRules();
+            $rules = $rules->getRules();
         }
 
         if ($this->currentScene) {
@@ -1390,6 +1390,9 @@ class Validate
     public function dateFormat($value, $rule): bool
     {
         $info = date_parse_from_format($rule, $value);
+        if (strlen((string) $info['year']) != 4 && strpos($rule, 'Y') !== false) {
+            return false;
+        }
         return 0 == $info['warning_count'] && 0 == $info['error_count'];
     }
 
