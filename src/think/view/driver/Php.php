@@ -53,21 +53,12 @@ class Php implements TemplateHandlerInterface
      */
     public function exists(string $template): bool
     {
-        if ('' == pathinfo($template, PATHINFO_EXTENSION)) {
-            // 获取模板文件名
-            $template = $this->parseTemplate($template);
-        }
+        $template = $this->getTemplateFile($template);
 
         return is_file($template);
     }
 
-    /**
-     * 渲染模板文件
-     * @param string $template 模板文件
-     * @param array  $data     模板变量
-     * @return void
-     */
-    public function fetch(string $template, array $data = []): void
+    protected function getTemplateFile(string $template): string
     {
         if ('' == pathinfo($template, PATHINFO_EXTENSION)) {
             // 获取模板文件名
@@ -76,6 +67,19 @@ class Php implements TemplateHandlerInterface
             $path     = $this->config['view_path'] ?: $this->getViewPath($this->app->http->getName());
             $template = $path . $template;
         }
+
+        return $template;
+    }
+    
+    /**
+     * 渲染模板文件
+     * @param string $template 模板文件
+     * @param array  $data     模板变量
+     * @return void
+     */
+    public function fetch(string $template, array $data = []): void
+    {
+        $template = $this->getTemplateFile($template);
 
         // 模板不存在 抛出异常
         if (!is_file($template)) {
