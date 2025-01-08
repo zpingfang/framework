@@ -72,6 +72,9 @@ class Php implements TemplateHandlerInterface
         if ('' == pathinfo($template, PATHINFO_EXTENSION)) {
             // 获取模板文件名
             $template = $this->parseTemplate($template);
+        } else {
+            $path     = $this->config['view_path'] ?: $this->getViewPath($this->app->http->getName());
+            $template = $path . $template;
         }
 
         // 模板不存在 抛出异常
