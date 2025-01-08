@@ -100,6 +100,26 @@ class Php implements TemplateHandlerInterface
         eval('?>' . $this->content);
     }
 
+    protected function getViewPath(string $app): string
+    {
+        $view = $this->config['view_dir_name'];
+        $app  = $app ? $app . DIRECTORY_SEPARATOR : '';
+
+        $paths = [
+            $this->app->getBasePath() . $app . $view . DIRECTORY_SEPARATOR,
+            $this->app->getBasePath() . $view . DIRECTORY_SEPARATOR . $app,
+            $this->app->getRootPath() . $view . DIRECTORY_SEPARATOR . $app
+        ];
+
+        foreach ($paths as $path) {
+            if (is_dir($path)) {
+                return $path;
+            }
+        }
+
+        return '';     
+    }
+
     /**
      * 自动定位模板文件
      * @param string $template 模板文件规则
@@ -113,6 +133,8 @@ class Php implements TemplateHandlerInterface
         if (str_contains($template, '@')) {
             // 跨应用调用
             [$app, $template] = explode('@', $template);
+        } elseif ($this->app->http->getName()) {
+            $app = $this->app->http->getName();
         } elseif ($request->layer()) {
             $app        = $request->layer();
             $controller = $request->controller(false, true);
@@ -121,14 +143,7 @@ class Php implements TemplateHandlerInterface
         if ($this->config['view_path']) {
             $path = $this->config['view_path'];
         } else {
-            $appName = $app ?? $this->app->http->getName();
-            $view    = $this->config['view_dir_name'];
-
-            if (is_dir($this->app->getAppPath() . $view)) {
-                $path = isset($app) ? $this->app->getBasePath() . ($appName ? $appName . DIRECTORY_SEPARATOR : '') . $view . DIRECTORY_SEPARATOR : $this->app->getAppPath() . $view . DIRECTORY_SEPARATOR;
-            } else {
-                $path = $this->app->getRootPath() . $view . DIRECTORY_SEPARATOR . ($appName ? $appName . DIRECTORY_SEPARATOR : '');
-            }
+            $path = $this->getViewPath($app ?? $this->app->http->getName());
         }
 
         $depr = $this->config['view_depr'];
