@@ -110,7 +110,7 @@ class Php implements TemplateHandlerInterface
     protected function getViewPath(string $app): string
     {
         $view  = $this->config['view_dir_name'] . DIRECTORY_SEPARATOR;
-        $app   = $app ? $app . DIRECTORY_SEPARATOR : '';
+        $app   = $app ? str_replace('.', DIRECTORY_SEPARATOR, $app) . DIRECTORY_SEPARATOR : '';
         $paths = [
             $this->app->getBasePath() . $app . $view,
             $this->app->getBasePath() . $view . $app,
