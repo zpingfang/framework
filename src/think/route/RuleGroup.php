@@ -201,6 +201,12 @@ class RuleGroup extends Rule
      */
     protected function checkUrl(string $url): bool
     {
+        $url = str_replace('|', '/', $url);
+        if ($this->router->getRuleName()->getName($url)) {
+            // 定义过路由地址的 不支持访问
+            return false;
+        }
+
         if ($this->fullName) {
             $pos = strpos($this->fullName, '<');
 
@@ -210,7 +216,7 @@ class RuleGroup extends Rule
                 $str = $this->fullName;
             }
 
-            if ($str && 0 !== stripos(str_replace('|', '/', $url), $str)) {
+            if ($str && 0 !== stripos($url, $str)) {
                 return false;
             }
         }
@@ -630,7 +636,7 @@ class RuleGroup extends Rule
     {
         // 读取路由标识
         if (is_string($route)) {
-            $name = $route;
+            $name = $this->fullName . '/' . $route;
         } else {
             $name = null;
         }

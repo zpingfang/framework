@@ -104,7 +104,7 @@ class Controller extends Dispatch
                 $this->parseDispatch($route);
                 $instance = $this->controller($this->controller);
             } else {
-                throw new HttpException(404, 'controller not exists:' . $e->getClass());                
+                throw new HttpException(404, 'controller not exists:' . $e->getClass());
             }
         }
 
