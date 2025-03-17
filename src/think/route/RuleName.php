@@ -133,7 +133,11 @@ class RuleName
 
                 foreach (['method', 'rule', 'name', 'route', 'domain', 'pattern', 'option'] as $param) {
                     $call        = 'get' . $param;
-                    $val[$param] = $item->$call();
+                    if ('rule' == $param) {
+                        $val[$param] = $item->$call() ?: '/';
+                    } else {
+                        $val[$param] = $item->$call();
+                    }
                 }
 
                 if ($item->isMiss()) {
