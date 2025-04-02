@@ -86,6 +86,8 @@ class Route
         'url_common_param'      => true,
         // 操作方法的参数绑定方式 route get param
         'action_bind_param'     => 'get',
+        // API版本header变量
+        'api_version'           => 'Api-Version',
     ];
 
     /**

@@ -399,9 +399,30 @@ abstract class Rule
      */
     public function filter(array $filter)
     {
-        $this->option['filter'] = $filter;
+        return $this->setOption('filter', $filter);
+    }
 
-        return $this;
+    /**
+     * 检查Header信息
+     * @access public
+     * @param  string $version 
+     * @return $this
+     */
+    public function header(array $header = [])
+    {
+        return $this->setOption('header', $header);
+    }
+
+    /**
+     * 检查版本控制
+     * @access public
+     * @param  string $version 
+     * @return $this
+     */
+    public function version(string $version)
+    {
+        $key = $this->config('api_version');
+        return $this->header([$key => $version]);
     }
 
     /**
@@ -412,9 +433,7 @@ abstract class Rule
      */
     public function default(array $default)
     {
-        $this->option['default'] = $default;
-
-        return $this;
+        return $this->setOption('default', $default);
     }
 
     /**
@@ -425,9 +444,7 @@ abstract class Rule
      */
     public function autoMiddleware(bool $auto = true)
     {
-        $this->option['auto_middleware'] = $auto;
-
-        return $this;
+        return $this->setOption('auto_middleware', $auto);
     }
 
     /**
@@ -477,9 +494,7 @@ abstract class Rule
      */
     public function validate($validate, string | array $scene = '', array $message = [], bool $batch = false)
     {
-        $this->option['validate'] = [$validate, $scene, $message, $batch];
-
-        return $this;
+        return $this->setOption('validate', [$validate, $scene, $message, $batch]);
     }
 
     /**
@@ -510,9 +525,7 @@ abstract class Rule
      */
     public function withoutMiddleware(array $middleware = [])
     {
-        $this->option['without_middleware'] = $middleware;
-
-        return $this;
+        return $this->setOption('without_middleware', $middleware);
     }
 
     /**
@@ -864,6 +877,14 @@ abstract class Rule
             }
         }
 
+        // 检查Header信息
+        if (isset($option['header']) {
+            foreach ($option['header'] as $name => $value) {
+                if ($request->header($name, '') != $value) {
+                    return false;
+                }
+            }
+        }
         return true;
     }
 
