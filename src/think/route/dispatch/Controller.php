@@ -38,7 +38,7 @@ class Controller extends Dispatch
 
     public function init(App $app)
     {
-        parent::init($app);
+        $this->app = $app;
         $this->parseDispatch();
     }
 
@@ -58,7 +58,7 @@ class Controller extends Dispatch
             $alias = $this->app->config->get('middleware.alias', []);
 
             if (isset($alias[$layer])) {
-                $this->app->middleware->add($layer, 'route');
+                $this->option['middleware'] = array_merge($this->option['middleware'] ?? [], [$layer]);
             }
         }
 
