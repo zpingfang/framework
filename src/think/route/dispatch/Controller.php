@@ -40,6 +40,7 @@ class Controller extends Dispatch
     {
         $this->app = $app;
         $this->parseDispatch();
+        $this->doRouteAfter();
     }
 
     protected function parseDispatch()

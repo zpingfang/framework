@@ -38,11 +38,6 @@ abstract class Dispatch
     {
     }
 
-    public function init(App $app)
-    {
-        $this->app = $app;
-    }
-
     /**
      * 执行路由调度
      * @access public
@@ -50,8 +45,6 @@ abstract class Dispatch
      */
     public function run(): Response
     {
-        // 执行路由后置操作
-        $this->doRouteAfter();
         $data = $this->exec();
         return $this->autoResponse($data);
     }

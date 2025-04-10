@@ -40,6 +40,7 @@ class Callback extends Dispatch
         if (is_array($this->dispatch)) {
             $this->parseDispatch();
         }
+        $this->doRouteAfter();
     }
 
     protected function parseDispatch()
