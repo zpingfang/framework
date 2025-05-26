@@ -202,7 +202,7 @@ class RuleGroup extends Rule
     protected function checkUrl(string $url): bool
     {
         $url = str_replace('|', '/', $url);
-        if ($this->router->getRuleName()->getName($url)) {
+        if (!$this->config('url_route_must') && $this->router->getRuleName()->getName($url)) {
             // 定义过路由地址的 不支持访问
             return false;
         }
