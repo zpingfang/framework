@@ -1,0 +1,953 @@
+{
+  "name": "网页内容智能视频生成器",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-video",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "f1a2b3c4-d5e6-7f8g-9h0i-j1k2l3m4n5o6",
+      "name": "视频生成触发器",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "video-generator-webhook"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "url",
+              "value": "={{ $json.body.url || '' }}"
+            },
+            {
+              "name": "scene_count",
+              "value": "={{ $json.body.scene_count || 10 }}"
+            },
+            {
+              "name": "video_style",
+              "value": "={{ $json.body.video_style || '专业商务' }}"
+            },
+            {
+              "name": "voice_language",
+              "value": "={{ $json.body.voice_language || '中文' }}"
+            },
+            {
+              "name": "retry_count",
+              "value": "0"
+            },
+            {
+              "name": "current_scene",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6",
+      "name": "输入参数设置",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "url-validation",
+              "leftValue": "={{ $node['输入参数设置'].json.url }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b2c3d4e5-f6g7-8h9i-0j1k-l2m3n4o5p6q7",
+      "name": "URL验证",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "message": "请提供有效的URL地址",
+        "options": {}
+      },
+      "id": "c3d4e5f6-g7h8-9i0j-1k2l-m3n4o5p6q7r8",
+      "name": "URL错误提示",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [680, 480]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $node['输入参数设置'].json.url }}",
+        "authentication": "none",
+        "requestTimeout": 30000,
+        "options": {
+          "timeout": 30000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": true,
+              "maxRedirects": 5
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "autodetect"
+            }
+          }
+        }
+      },
+      "id": "d4e5f6g7-h8i9-0j1k-2l3m-n4o5p6q7r8s9",
+      "name": "获取网页内容",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "dataPropertyName": "data",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "title",
+              "cssSelector": "title, h1, .title, [class*='title']",
+              "returnValue": "text",
+              "returnArray": false
+            },
+            {
+              "key": "description",
+              "cssSelector": "meta[name='description'], .description, .summary, [class*='description']",
+              "returnValue": "text",
+              "returnArray": false
+            },
+            {
+              "key": "price",
+              "cssSelector": ".price, .cost, [class*='price'], [class*='cost'], [id*='price'], .price-current",
+              "returnValue": "text",
+              "returnArray": false
+            },
+            {
+              "key": "features",
+              "cssSelector": ".features, .feature-list, [class*='feature'], .product-details, .specs",
+              "returnValue": "text",
+              "returnArray": false
+            },
+            {
+              "key": "content",
+              "cssSelector": "body",
+              "returnValue": "text",
+              "returnArray": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e5f6g7h8-i9j0-1k2l-3m4n-o5p6q7r8s9t0",
+      "name": "提取网页信息",
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 智能内容分析和页面类型判断\nconst content = $input.first().json;\nconst url = $('输入参数设置').first().json.url;\nconst sceneCount = parseInt($('输入参数设置').first().json.scene_count);\nconst videoStyle = $('输入参数设置').first().json.video_style;\nconst voiceLanguage = $('输入参数设置').first().json.voice_language;\n\n// 提取和清理文本内容\nfunction cleanText(text) {\n  if (!text) return '';\n  return text.replace(/\\s+/g, ' ').replace(/[\\r\\n]+/g, ' ').trim();\n}\n\n// 判断页面类型\nfunction detectPageType(url, title, content) {\n  const urlLower = url.toLowerCase();\n  const titleLower = (title || '').toLowerCase();\n  const contentLower = content.toLowerCase();\n  \n  // 电商平台检测\n  const ecommercePatterns = [\n    'amazon', 'taobao', 'tmall', 'jd.com', 'shopify', 'alibaba',\n    'ebay', 'walmart', 'target', 'bestbuy', '购买', '商品', 'product',\n    'shop', 'store', 'buy', 'price', '$', '¥', '€', '£', 'cart', 'checkout'\n  ];\n  \n  // 新闻平台检测\n  const newsPatterns = [\n    'news', 'article', 'report', 'breaking', '新闻', '报道', \n    'headline', 'story', 'press', 'media', '今日', '昨日', 'reuters', 'bbc', 'cnn'\n  ];\n  \n  let ecommerceScore = 0;\n  let newsScore = 0;\n  \n  ecommercePatterns.forEach(pattern => {\n    if (urlLower.includes(pattern) || titleLower.includes(pattern) || contentLower.includes(pattern)) {\n      ecommerceScore++;\n    }\n  });\n  \n  newsPatterns.forEach(pattern => {\n    if (urlLower.includes(pattern) || titleLower.includes(pattern) || contentLower.includes(pattern)) {\n      newsScore++;\n    }\n  });\n  \n  if (ecommerceScore > newsScore) return 'ecommerce';\n  if (newsScore > ecommerceScore) return 'news';\n  return 'general';\n}\n\n// 提取关键信息\nconst title = cleanText(content.title);\nconst description = cleanText(content.description);\nconst price = cleanText(content.price);\nconst features = cleanText(content.features);\nconst fullContent = cleanText(content.content);\n\n// 判断页面类型\nconst pageType = detectPageType(url, title, fullContent);\n\n// 根据页面类型生成不同的提示词\nlet extractionPrompt = '';\n\nif (pageType === 'ecommerce') {\n  extractionPrompt = `请分析以下电商商品页面内容，提取关键信息：\\n\\n标题：${title}\\n描述：${description}\\n价格：${price}\\n特性：${features}\\n\\n请提取以下信息并以JSON格式返回：\\n1. 产品名称 (product_name)\\n2. 主要特性 (main_features) - 数组格式\\n3. 价格信息 (price_info)\\n4. 目标用户 (target_audience)\\n5. 产品优势 (advantages) - 数组格式\\n6. 使用场景 (use_cases) - 数组格式`;\n} else if (pageType === 'news') {\n  extractionPrompt = `请分析以下新闻页面内容，提取关键信息：\\n\\n标题：${title}\\n内容：${fullContent.substring(0, 2000)}\\n\\n请提取以下信息并以JSON格式返回：\\n1. 新闻标题 (news_title)\\n2. 主要事件 (main_event)\\n3. 关键人物 (key_people) - 数组格式\\n4. 时间地点 (time_location)\\n5. 重要细节 (important_details) - 数组格式\\n6. 影响分析 (impact_analysis)`;\n} else {\n  extractionPrompt = `请分析以下网页内容，提取关键信息：\\n\\n标题：${title}\\n描述：${description}\\n内容：${fullContent.substring(0, 2000)}\\n\\n请提取以下信息并以JSON格式返回：\\n1. 主题 (main_topic)\\n2. 关键点 (key_points) - 数组格式\\n3. 目标受众 (target_audience)\\n4. 核心信息 (core_message)\\n5. 相关细节 (related_details) - 数组格式`;\n}\n\nreturn {\n  page_type: pageType,\n  url: url,\n  raw_content: {\n    title: title,\n    description: description,\n    price: price,\n    features: features,\n    content: fullContent.substring(0, 3000)\n  },\n  extraction_prompt: extractionPrompt,\n  scene_count: sceneCount,\n  video_style: videoStyle,\n  voice_language: voiceLanguage\n};",
+        "options": {}
+      },
+      "id": "f6g7h8i9-j0k1-2l3m-4n5o-p6q7r8s9t0u1",
+      "name": "内容分析与类型判断",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api-inference.huggingface.co/models/google/flan-t5-large",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "requestTimeout": 60000,
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_HF_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"inputs\": \"{{ $json.extraction_prompt }}\",\n  \"parameters\": {\n    \"max_length\": 1000,\n    \"temperature\": 0.3,\n    \"do_sample\": true\n  }\n}",
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "autodetect"
+            }
+          }
+        }
+      },
+      "id": "g7h8i9j0-k1l2-3m4n-5o6p-q7r8s9t0u1v2",
+      "name": "AI信息提取",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "huggingface-api",
+          "name": "Hugging Face API"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 生成分镜脚本\nconst aiResponse = $input.first().json;\nconst analysisData = $('内容分析与类型判断').first().json;\n\nlet extractedInfo = '';\nif (Array.isArray(aiResponse) && aiResponse.length > 0) {\n  extractedInfo = aiResponse[0].generated_text || JSON.stringify(analysisData.raw_content);\n} else if (aiResponse && aiResponse.generated_text) {\n  extractedInfo = aiResponse.generated_text;\n} else {\n  extractedInfo = JSON.stringify(analysisData.raw_content);\n}\n\n// 根据页面类型生成分镜脚本\nconst pageType = analysisData.page_type;\nconst sceneCount = analysisData.scene_count;\nconst videoStyle = analysisData.video_style;\nconst voiceLanguage = analysisData.voice_language;\n\n// 创建分镜\nconst scenes = [];\nfor (let i = 1; i <= sceneCount; i++) {\n  let sceneDescription = '';\n  let narration = '';\n  \n  if (pageType === 'ecommerce') {\n    const productName = analysisData.raw_content.title || '商品';\n    sceneDescription = `专业商品展示场景${i}，展示${productName}的特色和优势，高质量商业摄影风格`;\n    narration = `第${i}个场景：展示${productName}的核心特性和优势`;\n  } else if (pageType === 'news') {\n    const newsTitle = analysisData.raw_content.title || '新闻事件';\n    sceneDescription = `新闻报道场景${i}，客观展示${newsTitle}相关内容，专业新闻摄影风格`;\n    narration = `第${i}个场景：报道${newsTitle}的重要信息`;\n  } else {\n    const mainTopic = analysisData.raw_content.title || '主要内容';\n    sceneDescription = `内容展示场景${i}，传达${mainTopic}的核心信息，专业演示风格`;\n    narration = `第${i}个场景：介绍${mainTopic}的关键要点`;\n  }\n  \n  // 风格映射\n  const styleMapping = {\n    '专业商务': 'professional business style, clean corporate aesthetic, high-quality product photography, studio lighting',\n    '活泼轻松': 'vibrant and playful style, bright colors, energetic composition, dynamic lighting',\n    '高端奢华': 'luxury premium style, elegant sophisticated aesthetic, high-end fashion photography, dramatic lighting',\n    '简约现代': 'minimalist modern style, clean lines, contemporary design, soft natural lighting'\n  };\n  \n  const stylePrompt = styleMapping[videoStyle] || 'professional style, high quality, detailed';\n  \n  scenes.push({\n    scene_number: i,\n    image_prompt: `${sceneDescription}, ${stylePrompt}, cinematic composition, 4K quality, ultra detailed, photorealistic`,\n    narration: narration,\n    duration: 5,\n    camera_movement: i % 3 === 0 ? 'slow zoom in' : (i % 3 === 1 ? 'pan right' : 'steady shot'),\n    style_notes: videoStyle\n  });\n}\n\nreturn {\n  scenes: scenes,\n  total_scenes: scenes.length,\n  video_style: videoStyle,\n  voice_language: voiceLanguage,\n  page_type: pageType,\n  original_url: analysisData.url,\n  extracted_info: extractedInfo\n};",
+        "options": {}
+      },
+      "id": "h8i9j0k1-l2m3-4n5o-6p7q-r8s9t0u1v2w3",
+      "name": "生成分镜脚本",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "i9j0k1l2-m3n4-5o6p-7q8r-s9t0u1v2w3x4",
+      "name": "分镜处理循环",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "requestTimeout": 60000,
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_HF_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"inputs\": \"{{ $json.image_prompt }}\",\n  \"parameters\": {\n    \"num_inference_steps\": 20,\n    \"guidance_scale\": 7.5,\n    \"width\": 1024,\n    \"height\": 576,\n    \"seed\": {{ Math.floor(Math.random() * 1000000) }}\n  }\n}",
+        "options": {
+          "timeout": 60000,\n          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputFormat": "binary"
+            }
+          }
+        }
+      },
+      "id": "j0k1l2m3-n4o5-6p7q-8r9s-t0u1v2w3x4y5",
+      "name": "生成分镜图像",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "huggingface-api",
+          "name": "Hugging Face API"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "image-success-check",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "k1l2m3n4-o5p6-7q8r-9s0t-u1v2w3x4y5z6",
+      "name": "检查图像生成状态",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2440, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 处理图像生成成功的情况\nconst imageData = $input.first().binary;\nconst sceneData = $('分镜处理循环').first().json;\n\nreturn {\n  scene_number: sceneData.scene_number,\n  image_data: imageData,\n  narration: sceneData.narration,\n  duration: sceneData.duration,\n  camera_movement: sceneData.camera_movement,\n  status: 'success',\n  image_prompt: sceneData.image_prompt,\n  style_notes: sceneData.style_notes\n};",
+        "options": {}
+      },
+      "id": "l2m3n4o5-p6q7-8r9s-0t1u-v2w3x4y5z6a7",
+      "name": "处理成功图像",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2660, 220]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 处理图像生成失败的情况\nconst sceneData = $('分镜处理循环').first().json;\nconst retryCount = parseInt($node['输入参数设置'].json.retry_count) || 0;\n\nif (retryCount >= 3) {\n  return {\n    scene_number: sceneData.scene_number,\n    status: 'failed',\n    error: 'Maximum retry attempts reached for image generation',\n    image_prompt: sceneData.image_prompt,\n    narration: sceneData.narration,\n    duration: sceneData.duration,\n    retry_count: retryCount\n  };\n}\n\nreturn {\n  scene_number: sceneData.scene_number,\n  status: 'retry',\n  retry_count: retryCount + 1,\n  image_prompt: sceneData.image_prompt,\n  narration: sceneData.narration,\n  duration: sceneData.duration,\n  camera_movement: sceneData.camera_movement\n};",
+        "options": {}
+      },
+      "id": "m3n4o5p6-q7r8-9s0t-1u2v-w3x4y5z6a7b8",
+      "name": "处理图像失败",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2660, 380]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "retry-check",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "retry",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n3o4p5q6-r7s8-9t0u-1v2w-x3y4z5a6b7c8",
+      "name": "检查是否需要重试",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2880, 380]
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "id": "o4p5q6r7-s8t9-0u1v-2w3x-y4z5a6b7c8d9",
+      "name": "重试等待",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [3100, 480]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.aimlapi.com/v1/images/generations",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "requestTimeout": 120000,
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_AIML_API_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"model\": \"kling-video/v1/standard/image_to_video\",\n  \"prompt\": \"Transform this image into a smooth 5-second video with {{ $json.camera_movement || 'steady motion' }}\",\n  \"image_url\": \"data:image/jpeg;base64,{{ $binary.data.toString('base64') }}\",\n  \"duration\": 5,\n  \"aspect_ratio\": \"16:9\",\n  \"cfg_scale\": 0.5,\n  \"mode\": \"std\"\n}",
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "autodetect"
+            }
+          }
+        }
+      },
+      "id": "p5q6r7s8-t9u0-1v2w-3x4y-z5a6b7c8d9e0",
+      "name": "图像转视频",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2880, 220],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "aiml-api",
+          "name": "AI/ML API"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3
+    },
+    {
+      "parameters": {
+        "amount": 30,
+        "unit": "seconds"
+      },
+      "id": "q6r7s8t9-u0v1-2w3x-4y5z-a6b7c8d9e0f1",
+      "name": "视频生成等待",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [3100, 220]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.aimlapi.com/v1/images/generations/{{ $json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "requestTimeout": 30000,
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_AIML_API_KEY"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "autodetect"
+            }
+          }
+        }
+      },
+      "id": "r7s8t9u0-v1w2-3x4y-5z6a-b7c8d9e0f1g2",
+      "name": "获取视频结果",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3320, 220],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "aiml-api",
+          "name": "AI/ML API"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.segmind.com/v1/kokoro-tts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "requestTimeout": 60000,
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "YOUR_SEGMIND_API_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={\n  \"text\": \"{{ $node['分镜处理循环'].json.narration }}\",\n  \"voice\": \"{{ $node['生成分镜脚本'].json.voice_language === '中文' ? 'zh-cn' : 'en-us' }}\",\n  \"speed\": 1.0,\n  \"pitch\": 1.0\n}",
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputFormat": "binary"
+            }
+          }
+        }
+      },
+      "id": "s8t9u0v1-w2x3-4y5z-6a7b-c8d9e0f1g2h3",
+      "name": "生成配音",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3320, 380],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "segmind-api",
+          "name": "Segmind API"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 3
+    },
+    {
+      "parameters": {
+        "jsCode": "// 收集分镜数据\nconst videoResult = $('获取视频结果').first()?.json;\nconst audioResult = $('生成配音').first()?.binary;\nconst sceneData = $('分镜处理循环').first().json;\n\nconst result = {\n  scene_number: sceneData.scene_number,\n  video_url: videoResult?.output?.url || videoResult?.url || null,\n  audio_data: audioResult || null,\n  narration: sceneData.narration,\n  duration: sceneData.duration,\n  camera_movement: sceneData.camera_movement,\n  status: 'completed',\n  generation_id: videoResult?.id || null\n};\n\nreturn result;",
+        "options": {}
+      },
+      "id": "t9u0v1w2-x3y4-5z6a-7b8c-d9e0f1g2h3i4",
+      "name": "收集分镜数据",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3540, 300]
+    },
+    {
+      "parameters": {
+        "mode": "combineByPosition",
+        "options": {}
+      },
+      "id": "u0v1w2x3-y4z5-6a7b-8c9d-e0f1g2h3i4j5",
+      "name": "合并所有分镜",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [3760, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 生成最终结果\nconst allScenes = $input.all();\nconst projectData = $node['生成分镜脚本'].json;\n\n// 过滤和统计\nconst successfulScenes = allScenes.filter(scene => \n  scene.json.status === 'completed' || scene.json.status === 'success'\n);\nconst failedScenes = allScenes.filter(scene => \n  scene.json.status === 'failed'\n);\n\nif (successfulScenes.length === 0) {\n  return {\n    status: 'error',\n    message: '所有分镜生成失败，请检查API配置和网络连接',\n    failed_count: failedScenes.length,\n    total_scenes: projectData.total_scenes\n  };\n}\n\n// 按场景编号排序\nsuccessfulScenes.sort((a, b) => a.json.scene_number - b.json.scene_number);\n\n// 准备场景结果\nconst sceneResults = successfulScenes.map(scene => ({\n  scene_number: scene.json.scene_number,\n  video_url: scene.json.video_url,\n  narration: scene.json.narration,\n  duration: scene.json.duration,\n  camera_movement: scene.json.camera_movement,\n  status: 'completed',\n  has_audio: !!scene.json.audio_data,\n  generation_id: scene.json.generation_id\n}));\n\n// 生成项目摘要\nconst summary = {\n  project_name: `视频项目-${new Date().toISOString().split('T')[0]}`,\n  total_scenes: projectData.total_scenes,\n  successful_scenes: successfulScenes.length,\n  failed_scenes: failedScenes.length,\n  success_rate: (successfulScenes.length / projectData.total_scenes * 100).toFixed(2) + '%',\n  original_url: projectData.original_url,\n  page_type: projectData.page_type,\n  video_style: projectData.video_style,\n  voice_language: projectData.voice_language,\n  total_duration: successfulScenes.length * 5 + ' seconds',\n  estimated_file_size: (successfulScenes.length * 15).toFixed(1) + ' MB'\n};\n\n// 生成下载链接和说明\nconst downloadInstructions = {\n  video_segments: sceneResults.map(scene => ({\n    scene: scene.scene_number,\n    download_url: scene.video_url,\n    filename: `scene_${scene.scene_number.toString().padStart(2, '0')}.mp4`\n  })),\n  composition_guide: [\n    '1. 下载所有视频片段到本地',\n    '2. 使用视频编辑软件（如 Premiere、Final Cut Pro、DaVinci Resolve）',\n    '3. 按场景编号顺序排列片段',\n    '4. 添加转场效果（建议使用淡入淡出）',\n    '5. 调整音频音量平衡',\n    '6. 添加背景音乐（可选）',\n    '7. 导出最终视频（建议1080p，30fps）'\n  ],\n  recommended_settings: {\n    resolution: '1920x1080',\n    frame_rate: '30fps',\n    bitrate: '8-12 Mbps',\n    audio_bitrate: '320 kbps',\n    format: 'MP4 (H.264)'\n  }\n};\n\nreturn {\n  status: 'completed',\n  message: `视频项目完成！成功生成 ${successfulScenes.length}/${projectData.total_scenes} 个分镜`,\n  summary: summary,\n  scenes: sceneResults,\n  downloads: downloadInstructions,\n  timestamp: new Date().toISOString(),\n  next_steps: [\n    '下载所有视频片段',\n    '使用专业视频编辑软件合成',\n    '添加字幕和特效（可选）',\n    '导出并发布最终视频'\n  ],\n  api_usage: {\n    huggingface_calls: projectData.total_scenes + 1,\n    video_generation_calls: successfulScenes.length,\n    audio_generation_calls: successfulScenes.length\n  }\n};",
+        "options": {}
+      },
+      "id": "v1w2x3y4-z5a6-7b8c-9d0e-f1g2h3i4j5k6",
+      "name": "准备最终结果",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3980, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"data\": {{ JSON.stringify($json) }},\n  \"generated_at\": \"{{ new Date().toISOString() }}\",\n  \"webhook_info\": {\n    \"workflow_name\": \"网页内容智能视频生成器\",\n    \"version\": \"2.0\",\n    \"total_processing_time\": \"{{ Math.round((Date.now() - new Date($node['视频生成触发器'].json.timestamp || Date.now()).getTime()) / 1000) }} seconds\"\n  }\n}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "w2x3y4z5-a6b7-8c9d-0e1f-g2h3i4j5k6l7",
+      "name": "返回最终结果",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [4200, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"网页内容获取失败\",\n  \"message\": \"无法访问提供的URL，请检查：\\n1. URL是否正确\\n2. 网站是否可访问\\n3. 是否存在防爬虫限制\",\n  \"error_details\": {\n    \"url\": \"{{ $node['输入参数设置'].json.url }}\",\n    \"timestamp\": \"{{ new Date().toISOString() }}\",\n    \"suggestions\": [\n      \"检查URL格式是否正确\",\n      \"尝试其他网页URL\",\n      \"稍后重试\"\n    ]\n  }\n}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "x3y4z5a6-b7c8-9d0e-1f2g-h3i4j5k6l7m8",
+      "name": "网页获取错误",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [900, 480]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"AI服务暂时不可用\",\n  \"message\": \"AI信息提取服务出现问题，请检查：\\n1. API密钥是否正确\\n2. 服务是否正常\\n3. 网络连接状态\",\n  \"error_details\": {\n    \"service\": \"Hugging Face Inference API\",\n    \"timestamp\": \"{{ new Date().toISOString() }}\",\n    \"suggestions\": [\n      \"检查Hugging Face API Token\",\n      \"验证API配额\",\n      \"稍后重试\"\n    ]\n  }\n}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "y4z5a6b7-c8d9-0e1f-2g3h-i4j5k6l7m8n9",
+      "name": "AI服务错误",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1560, 480]
+    }
+  ],
+  "connections": {
+    "视频生成触发器": {
+      "main": [
+        [
+          {
+            "node": "输入参数设置",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "输入参数设置": {
+      "main": [
+        [
+          {
+            "node": "URL验证",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "URL验证": {
+      "main": [
+        [
+          {
+            "node": "获取网页内容",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "URL错误提示",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "获取网页内容": {
+      "main": [
+        [
+          {
+            "node": "提取网页信息",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "网页获取错误",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "提取网页信息": {
+      "main": [
+        [
+          {
+            "node": "内容分析与类型判断",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "内容分析与类型判断": {
+      "main": [
+        [
+          {
+            "node": "AI信息提取",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI信息提取": {
+      "main": [
+        [
+          {
+            "node": "生成分镜脚本",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "AI服务错误",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "生成分镜脚本": {
+      "main": [
+        [
+          {
+            "node": "分镜处理循环",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "分镜处理循环": {
+      "main": [
+        [
+          {
+            "node": "生成分镜图像",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "生成分镜图像": {
+      "main": [
+        [
+          {
+            "node": "检查图像生成状态",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "检查图像生成状态",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "检查图像生成状态": {
+      "main": [
+        [
+          {
+            "node": "处理成功图像",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "处理图像失败",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "处理成功图像": {
+      "main": [
+        [
+          {
+            "node": "图像转视频",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "处理图像失败": {
+      "main": [
+        [
+          {
+            "node": "检查是否需要重试",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "检查是否需要重试": {
+      "main": [
+        [
+          {
+            "node": "合并所有分镜",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "重试等待",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "重试等待": {
+      "main": [
+        [
+          {
+            "node": "生成分镜图像",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "图像转视频": {
+      "main": [
+        [
+          {
+            "node": "视频生成等待",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "视频生成等待": {
+      "main": [
+        [
+          {
+            "node": "获取视频结果",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "获取视频结果": {
+      "main": [
+        [
+          {
+            "node": "生成配音",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "生成配音": {
+      "main": [
+        [
+          {
+            "node": "收集分镜数据",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "收集分镜数据": {
+      "main": [
+        [
+          {
+            "node": "合并所有分镜",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "合并所有分镜": {
+      "main": [
+        [
+          {
+            "node": "准备最终结果",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "准备最终结果": {
+      "main": [
+        [
+          {
+            "node": "返回最终结果",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": {
+      "errorWorkflow": ""
+    }
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-01-27T12:00:00.000Z",
+      "updatedAt": "2025-01-27T12:00:00.000Z",
+      "id": "video-generator",
+      "name": "视频生成器"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-27T12:00:00.000Z",
+  "versionId": "2"
+}
